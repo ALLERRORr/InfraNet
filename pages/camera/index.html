@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Câmera - Captura de Fotos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 500: '#3b82f6', 600: '#2563eb' },
+                        dark: { 700: '#374151', 800: '#1f2937', 900: '#111827' }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-dark-900 text-white min-h-screen">
+    <div class="max-w-4xl mx-auto p-4">
+        <!-- Header -->
+        <div class="mb-6 flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold mb-1">Câmera</h1>
+                <p class="text-gray-400 text-sm">Captura de fotos para Ordens de Serviço</p>
+            </div>
+            <button onclick="CameraModule.close()" class="px-4 py-2 bg-dark-700 hover:bg-dark-600 rounded-lg transition-colors">
+                <i class="fas fa-times mr-2"></i> Fechar
+            </button>
+        </div>
+        
+        <!-- Área da Câmera -->
+        <div class="bg-dark-800 border border-dark-700 rounded-xl overflow-hidden mb-6">
+            <div class="relative bg-black aspect-video flex items-center justify-center">
+                <video id="videoElement" autoplay playsinline class="w-full h-full object-cover"></video>
+                <canvas id="canvas" class="hidden"></canvas>
+                
+                <!-- Overlay quando câmera não está ativa -->
+                <div id="cameraOffOverlay" class="absolute inset-0 bg-dark-900 flex flex-col items-center justify-center">
+                    <i class="fas fa-camera text-6xl text-gray-600 mb-4"></i>
+                    <p class="text-gray-400 mb-4">Câmera desativada</p>
+                    <button onclick="CameraModule.startCamera()" class="px-6 py-3 bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors">
+                        <i class="fas fa-power-off mr-2"></i> Ativar Câmera
+                    </button>
+                </div>
+                
+                <!-- Controles sobrepostos -->
+                <div id="cameraControls" class="hidden absolute bottom-4 left-0 right-0 flex justify-center gap-4">
+                    <button onclick="CameraModule.switchCamera()" class="p-3 bg-dark-800/80 hover:bg-dark-700 rounded-full transition-colors">
+                        <i class="fas fa-sync-alt text-white"></i>
+                    </button>
+                    <button onclick="CameraModule.capture()" class="p-5 bg-white hover:bg-gray-200 rounded-full transition-colors">
+                        <i class="fas fa-circle text-red-500 text-2xl"></i>
+                    </button>
+                    <button onclick="CameraModule.toggleFlash()" class="p-3 bg-dark-800/80 hover:bg-dark-700 rounded-full transition-colors">
+                        <i class="fas fa-bolt text-white" id="flashIcon"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Informações da OS atual -->
+            <div class="p-4 border-t border-dark-700">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-400">OS #<span id="currentOSId">--</span></p>
+                        <p class="font-semibold" id="currentClientName">--</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-sm text-gray-400">Fotos capturadas</p>
+                        <p class="text-2xl font-bold text-primary-500" id="photoCount">0</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Fotos Capturadas -->
+        <div class="bg-dark-800 border border-dark-700 rounded-xl p-6 mb-6">
+            <h2 class="text-lg font-bold mb-4 flex items-center gap-2">
+                <i class="fas fa-images text-primary-500"></i> Fotos Capturadas
+            </h2>
+            
+            <div id="photosGrid" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <!-- Fotos serão inseridas aqui -->
+            </div>
+            
+            <div id="emptyPhotos" class="text-center py-8 text-gray-400">
+                <i class="fas fa-camera-retro text-4xl mb-3 opacity-50"></i>
+                <p>Nenhuma foto capturada ainda</p>
+                <p class="text-sm">Use a câmera acima para adicionar fotos à OS</p>
+            </div>
+        </div>
+        
+        <!-- Ações -->
+        <div class="flex gap-4">
+            <button onclick="CameraModule.saveToOS()" class="flex-1 py-4 bg-green-600 hover:bg-green-700 rounded-xl font-bold transition-colors flex items-center justify-center gap-2">
+                <i class="fas fa-save"></i> Salvar na OS
+            </button>
+            <button onclick="CameraModule.clearAll()" class="px-6 py-4 bg-red-600 hover:bg-red-700 rounded-xl font-bold transition-colors flex items-center gap-2">
+                <i class="fas fa-trash"></i> Limpar Tudo
+            </button>
+        </div>
+    </div>
+    
+    <script src="../../js/core/auth.js"></script>
+    <script src="../../js/components/toast.js"></script>
+    
+    <script>
+const CameraModule = {
+    stream: null,
+    photos: [],
+    currentOS: null,
+    facingMode: 'environment', // 'user' ou 'environment'
+    flashOn: false,
+    
+    init() {
+        // Pega ID da OS da URL ou localStorage
+        const urlParams = new URLSearchParams(window.location.search);
+        this.currentOS = urlParams.get('os') || localStorage.getItem('current_os_id');
+        
+        if (this.currentOS) {
+            document.getElementById('currentOSId').textContent = this.currentOS;
+            this.loadOSInfo();
+        }
+        
+        // Tenta iniciar câmera automaticamente
+        this.startCamera();
+    },
+    
+    loadOSInfo() {
+        const orders = JSON.parse(localStorage.getItem('isp_orders') || '[]');
+        const order = orders.find(o => o.id == this.currentOS);
+        
+        if (order) {
+            const clients = JSON.parse(localStorage.getItem('isp_clients') || '[]');
+            const client = clients.find(c => c.id === order.cliente_id);
+            if (client) {
+                document.getElementById('currentClientName').textContent = client.nome;
+            }
+        }
+    },
+    
+    async startCamera() {
+        try {
+            // Para stream anterior se existir
+            if (this.stream) {
+                this.stream.getTracks().forEach(track => track.stop());
+            }
+            
+            const constraints = {
+                video: {
+                    facingMode: this.facingMode,
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 }
+                },
+                audio: false
+            };
+            
+            this.stream = await navigator.mediaDevices.getUserMedia(constraints);
+            const video = document.getElementById('videoElement');
+            video.srcObject = this.stream;
+            
+            // Mostra controles, esconde overlay
+            document.getElementById('cameraControls').classList.remove('hidden');
+            document.getElementById('cameraOffOverlay').classList.add('hidden');
+            
+            Toast.show('Câmera ativada com sucesso!', 'success');
+        } catch (err) {
+            console.error('Erro ao acessar câmera:', err);
+            Toast.show('Não foi possível acessar a câmera. Verifique as permissões.', 'error');
+        }
+    },
+    
+    stopCamera() {
+        if (this.stream) {
+            this.stream.getTracks().forEach(track => track.stop());
+            this.stream = null;
+        }
+        document.getElementById('cameraControls').classList.add('hidden');
+        document.getElementById('cameraOffOverlay').classList.remove('hidden');
+    },
+    
+    switchCamera() {
+        this.facingMode = this.facingMode === 'user' ? 'environment' : 'user';
+        this.startCamera();
+    },
+    
+    toggleFlash() {
+        this.flashOn = !this.flashOn;
+        const icon = document.getElementById('flashIcon');
+        icon.className = this.flashOn ? 'fas fa-bolt text-yellow-400' : 'fas fa-bolt text-white';
+        Toast.show(this.flashOn ? 'Flash ativado' : 'Flash desativado', 'info');
+    },
+    
+    capture() {
+        const video = document.getElementById('videoElement');
+        const canvas = document.getElementById('canvas');
+        
+        // Configura canvas com tamanho do vídeo
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        // Converte para base64
+        const imageData = canvas.toDataURL('image/jpeg', 0.8);
+        
+        // Adiciona à lista de fotos
+        const photo = {
+            id: Date.now(),
+            timestamp: new Date().toISOString(),
+            data: imageData,
+            os_id: this.currentOS
+        };
+        
+        this.photos.push(photo);
+        this.renderPhotos();
+        
+        // Feedback visual de captura
+        const overlay = document.createElement('div');
+        overlay.className = 'absolute inset-0 bg-white animate-ping opacity-50';
+        video.parentElement.appendChild(overlay);
+        setTimeout(() => overlay.remove(), 300);
+        
+        Toast.show(`Foto ${this.photos.length} capturada!`, 'success');
+    },
+    
+    renderPhotos() {
+        const grid = document.getElementById('photosGrid');
+        const empty = document.getElementById('emptyPhotos');
+        const countEl = document.getElementById('photoCount');
+        
+        countEl.textContent = this.photos.length;
+        
+        if (this.photos.length === 0) {
+            grid.innerHTML = '';
+            empty.classList.remove('hidden');
+            return;
+        }
+        
+        empty.classList.add('hidden');
+        grid.innerHTML = this.photos.map((photo, idx) => `
+            <div class="relative group aspect-square rounded-lg overflow-hidden border border-dark-700">
+                <img src="${photo.data}" alt="Foto ${idx + 1}" class="w-full h-full object-cover">
+                <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                    <button onclick="CameraModule.viewPhoto(${idx})" class="p-2 bg-white/20 hover:bg-white/30 rounded-full transition-colors">
+                        <i class="fas fa-eye text-white"></i>
+                    </button>
+                    <button onclick="CameraModule.deletePhoto(${idx})" class="p-2 bg-red-500/80 hover:bg-red-600 rounded-full transition-colors">
+                        <i class="fas fa-trash text-white"></i>
+                    </button>
+                </div>
+                <div class="absolute bottom-2 left-2 px-2 py-1 bg-black/70 rounded text-xs text-white">
+                    ${new Date(photo.timestamp).toLocaleTimeString('pt-BR')}
+                </div>
+            </div>
+        `).join('');
+    },
+    
+    viewPhoto(idx) {
+        const photo = this.photos[idx];
+        const win = window.open('', '_blank');
+        win.document.write(`<img src="${photo.data}" style="max-width:100%">`);
+    },
+    
+    deletePhoto(idx) {
+        this.photos.splice(idx, 1);
+        this.renderPhotos();
+        Toast.show('Foto removida', 'info');
+    },
+    
+    saveToOS() {
+        if (this.photos.length === 0) {
+            Toast.show('Nenhuma foto para salvar', 'error');
+            return;
+        }
+        
+        // Salva no localStorage associado à OS
+        const key = `isp_os_photos_${this.currentOS}`;
+        const existing = JSON.parse(localStorage.getItem(key) || '[]');
+        existing.push(...this.photos);
+        localStorage.setItem(key, JSON.stringify(existing));
+        
+        Toast.show(`${this.photos.length} foto(s) salva(s) na OS #${this.currentOS}`, 'success');
+        
+        // Retorna para a OS se veio de lá
+        setTimeout(() => {
+            if (window.opener) {
+                window.opener.location.reload();
+                window.close();
+            } else {
+                window.location.href = `/pages/suporte/ordens-servico.html?id=${this.currentOS}`;
+            }
+        }, 1500);
+    },
+    
+    clearAll() {
+        if (this.photos.length === 0) return;
+        
+        if (confirm(`Tem certeza que deseja remover todas as ${this.photos.length} fotos?`)) {
+            this.photos = [];
+            this.renderPhotos();
+            Toast.show('Todas as fotos foram removidas', 'info');
+        }
+    },
+    
+    close() {
+        this.stopCamera();
+        if (window.opener) {
+            window.close();
+        } else {
+            history.back();
+        }
+    }
+};
+
+// Inicializa
+document.addEventListener('DOMContentLoaded', () => CameraModule.init());
+
+// Libera câmera ao sair da página
+window.addEventListener('beforeunload', () => CameraModule.stopCamera());
+    </script>
+</body>
+</html>

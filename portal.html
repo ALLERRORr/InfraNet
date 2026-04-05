@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal do Cliente - ISP Manager Pro</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8' }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gradient-to-br from-blue-900 via-indigo-900 to-purple-900 min-h-screen flex items-center justify-center p-4">
+    
+    <div id="portal-content" class="w-full max-w-4xl">
+        <!-- Login Screen -->
+        <div id="login-screen" class="bg-gray-800/90 backdrop-blur-lg border border-gray-700 rounded-2xl shadow-2xl p-8">
+            <div class="text-center mb-8">
+                <div class="mx-auto w-16 h-16 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center mb-4">
+                    <i class="fas fa-user text-2xl text-white"></i>
+                </div>
+                <h1 class="text-2xl font-bold text-white">Portal do Cliente</h1>
+                <p class="text-gray-400 text-sm mt-2">Acesse com seu CPF para assinar o contrato</p>
+            </div>
+            
+            <form id="portal-login-form" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">CPF (apenas números)</label>
+                    <input type="text" id="login-cpf" required maxlength="11" pattern="\d{11}"
+                           class="w-full px-4 py-3 bg-gray-900/50 border border-gray-600 rounded-lg focus:outline-none focus:border-blue-500 text-white text-center text-lg tracking-wider"
+                           placeholder="00000000000">
+                </div>
+                
+                <div id="login-error" class="hidden bg-red-500/10 border border-red-500/50 text-red-400 text-sm p-3 rounded-lg">
+                    CPF não encontrado ou contrato não disponível para assinatura.
+                </div>
+                
+                <button type="submit" 
+                        class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition-all">
+                    Acessar Portal
+                </button>
+            </form>
+            
+            <div class="mt-6 text-center text-xs text-gray-500">
+                <p>Senha inicial é o seu próprio CPF</p>
+                <p class="mt-1">Dúvidas? Ligue para 0800 123 4567</p>
+            </div>
+        </div>
+        
+        <!-- Contract Screen (hidden by default) -->
+        <div id="contract-screen" class="hidden">
+            <div class="bg-gray-800/90 backdrop-blur-lg border border-gray-700 rounded-2xl shadow-2xl overflow-hidden">
+                <!-- Header -->
+                <div class="bg-gradient-to-r from-blue-600 to-indigo-600 p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h1 class="text-2xl font-bold text-white">Contrato de Prestação de Serviços</h1>
+                            <p class="text-blue-100 text-sm mt-1" id="client-name"></p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-blue-100 text-sm">Plano Contratado</p>
+                            <p class="text-white font-bold text-lg" id="plan-name"></p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Contract Info -->
+                <div class="p-6 space-y-6">
+                    <!-- Resumo -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="bg-gray-900/50 rounded-lg p-4">
+                            <p class="text-gray-400 text-xs uppercase">Valor Mensal</p>
+                            <p class="text-white font-bold text-xl" id="plan-value"></p>
+                        </div>
+                        <div class="bg-gray-900/50 rounded-lg p-4">
+                            <p class="text-gray-400 text-xs uppercase">Vencimento</p>
+                            <p class="text-white font-bold text-xl" id="due-day"></p>
+                        </div>
+                        <div class="bg-gray-900/50 rounded-lg p-4">
+                            <p class="text-gray-400 text-xs uppercase">Fidelidade</p>
+                            <p class="text-white font-bold text-xl">12 meses</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Comodatos -->
+                    <div class="bg-gray-900/50 rounded-lg p-4">
+                        <h3 class="text-white font-semibold mb-3">
+                            <i class="fas fa-box text-blue-400 mr-2"></i>Equipamentos Comodatos
+                        </h3>
+                        <div id="comodatos-list" class="space-y-2">
+                            <!-- Preenchido via JS -->
+                        </div>
+                    </div>
+                    
+                    <!-- Contrato completo -->
+                    <div class="bg-gray-900/50 rounded-lg p-4">
+                        <h3 class="text-white font-semibold mb-3">
+                            <i class="fas fa-file-contract text-blue-400 mr-2"></i>Termo Completo
+                        </h3>
+                        <div class="h-64 overflow-y-auto bg-gray-800 rounded-lg p-4 text-sm text-gray-300 space-y-3">
+                            <p><strong>CONTRATO DE PRESTAÇÃO DE SERVIÇOS DE COMUNICAÇÃO MULTIMÍDIA</strong></p>
+                            
+                            <p>Pelo presente instrumento particular, de um lado a empresa <strong>FIBRANET PROVEDOR DE INTERNET LTDA</strong>, pessoa jurídica de direito privado, inscrita no CNPJ sob nº 00.000.000/0001-00, com sede na Rua Exemplo, 123, Centro, doravante denominada CONTRATADA.</p>
+                            
+                            <p>E de outro lado, o(a) Sr(a). <span id="contract-client-name"></span>, portador(a) do CPF nº <span id="contract-client-cpf"></span>, residente e domiciliado(a) no endereço constante no cadastro, doravante denominado(a) CONTRATANTE.</p>
+                            
+                            <p><strong>CLÁUSULA PRIMEIRA - DO OBJETO</strong><br>
+                            O presente contrato tem por objeto a prestação de serviços de acesso à internet em banda larga, através de tecnologia FTTH (Fiber To The Home).</p>
+                            
+                            <p><strong>CLÁUSULA SEGUNDA - DA VELOCIDADE</strong><br>
+                            A CONTRATADA se compromete a fornecer o plano de <span id="contract-plan"></span>, conforme especificações técnicas da ANATEL.</p>
+                            
+                            <p><strong>CLÁUSULA TERCEIRA - DO VALOR</strong><br>
+                            Pela prestação dos serviços, o CONTRATANTE pagará à CONTRATADA o valor mensal de R$ <span id="contract-value"></span>, com vencimento todo dia <span id="contract-due"></span> de cada mês.</p>
+                            
+                            <p><strong>CLÁUSULA QUARTA - DA FIDELIDADE</strong><br>
+                            O presente contrato possui prazo mínimo de permanência de 12 (doze) meses. Em caso de rescisão antecipada por iniciativa do CONTRATANTE, será cobrada multa proporcional aos meses restantes.</p>
+                            
+                            <p><strong>CLÁUSULA QUINTA - DOS EQUIPAMENTOS</strong><br>
+                            Os equipamentos fornecidos em comodato permanecem como propriedade da CONTRATADA, devendo ser devolvidos em caso de rescisão contratual.</p>
+                            
+                            <p><strong>CLÁUSULA SEXTA - DA PROTEÇÃO DE DADOS</strong><br>
+                            Ambas as partes comprometem-se a tratar os dados pessoais em conformidade com a Lei Geral de Proteção de Dados (LGPD - Lei 13.709/2018).</p>
+                            
+                            <p class="text-gray-400 italic mt-4">(...demais cláusulas contratuais...)</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Aceite -->
+                    <div class="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4">
+                        <label class="flex items-start gap-3 cursor-pointer">
+                            <input type="checkbox" id="accept-contract" class="mt-1 w-5 h-5 rounded border-gray-600 text-blue-600 focus:ring-blue-500">
+                            <span class="text-sm text-gray-300">
+                                <strong>Declaro que li e aceito todos os termos deste contrato.</strong><br>
+                                Estou ciente das condições de fidelidade, valores e responsabilidades de ambas as partes.
+                            </span>
+                        </label>
+                    </div>
+                    
+                    <!-- Actions -->
+                    <div class="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-700">
+                        <button onclick="Portal.showLogin()" 
+                                class="flex-1 px-6 py-3 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors">
+                            <i class="fas fa-arrow-left mr-2"></i>Voltar
+                        </button>
+                        <button id="sign-btn" disabled
+                                class="flex-1 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-all flex items-center justify-center gap-2">
+                            <i class="fas fa-file-signature"></i>
+                            <span>Assinar Contrato Digitalmente</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Success message -->
+            <div id="success-screen" class="hidden mt-6 bg-green-900/20 border border-green-500/50 rounded-2xl p-8 text-center">
+                <div class="mx-auto w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center mb-4">
+                    <i class="fas fa-check-circle text-4xl text-green-400"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-white mb-2">Contrato Assinado com Sucesso!</h2>
+                <p class="text-gray-300 mb-4">Sua conexão está sendo liberada. Você receberá um e-mail de confirmação em instantes.</p>
+                <p class="text-sm text-gray-400">Protocolo: <span id="protocol-number"></span></p>
+                <p class="text-xs text-gray-500 mt-2">Data/Hora: <span id="sign-timestamp"></span></p>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const Portal = {
+            currentClient: null,
+            currentContract: null,
+            
+            init() {
+                this.setupEventListeners();
+            },
+            
+            setupEventListeners() {
+                // Login form
+                document.getElementById('portal-login-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.login();
+                });
+                
+                // Accept checkbox
+                document.getElementById('accept-contract').addEventListener('change', (e) => {
+                    document.getElementById('sign-btn').disabled = !e.target.checked;
+                });
+                
+                // Sign button
+                document.getElementById('sign-btn').addEventListener('click', () => {
+                    this.signContract();
+                });
+            },
+            
+            login() {
+                const cpf = document.getElementById('login-cpf').value.replace(/\D/g, '');
+                const errorDiv = document.getElementById('login-error');
+                
+                // Busca cliente e contrato
+                const clients = JSON.parse(localStorage.getItem('isp_clients') || '[]');
+                const contracts = JSON.parse(localStorage.getItem('isp_contracts') || '[]');
+                
+                const client = clients.find(c => c.cpf === cpf);
+                const contract = contracts.find(c => c.cliente_id === client?.id && 
+                    (c.status === 'PENDENTE' || c.status === 'AGUARDANDO_ASSINATURA'));
+                
+                if (!client || !contract) {
+                    errorDiv.classList.remove('hidden');
+                    return;
+                }
+                
+                this.currentClient = client;
+                this.currentContract = contract;
+                
+                this.showContract();
+            },
+            
+            showContract() {
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('contract-screen').classList.remove('hidden');
+                document.getElementById('success-screen').classList.add('hidden');
+                
+                // Preenche dados
+                document.getElementById('client-name').textContent = this.currentClient.nome;
+                document.getElementById('plan-name').textContent = this.currentContract.plano;
+                document.getElementById('plan-value').textContent = `R$ ${this.currentContract.valor.toFixed(2).replace('.', ',')}`;
+                document.getElementById('due-day').textContent = `Dia ${this.currentContract.vencimento}`;
+                
+                document.getElementById('contract-client-name').textContent = this.currentClient.nome;
+                document.getElementById('contract-client-cpf').textContent = this.currentClient.cpf;
+                document.getElementById('contract-plan').textContent = this.currentContract.plano;
+                document.getElementById('contract-value').textContent = this.currentContract.valor.toFixed(2).replace('.', ',');
+                document.getElementById('contract-due').textContent = this.currentContract.vencimento;
+                
+                // Carrega comodatos da OS
+                const orders = JSON.parse(localStorage.getItem('isp_orders') || '[]');
+                const order = orders.find(o => o.cliente_id === this.currentClient.id);
+                
+                const comodatosList = document.getElementById('comodatos-list');
+                if (order?.comodatos && order.comodatos.length > 0) {
+                    comodatosList.innerHTML = order.comodatos.map(c => `
+                        <div class="flex items-center justify-between bg-gray-800 rounded-lg p-3">
+                            <div>
+                                <p class="text-white font-medium">${c.tipo} - ${c.modelo}</p>
+                                <p class="text-gray-500 text-sm">N/S: ${c.serial}</p>
+                            </div>
+                            <span class="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded">Comodato</span>
+                        </div>
+                    `).join('');
+                } else {
+                    comodatosList.innerHTML = '<p class="text-gray-500 text-sm">Equipamentos serão registrados na instalação.</p>';
+                }
+            },
+            
+            signContract() {
+                // Coleta metadados
+                const signatureData = {
+                    ip_cliente: '192.168.1.100', // Em produção, pegar real
+                    user_agent: navigator.userAgent,
+                    timestamp: new Date().toISOString(),
+                    cpf: this.currentClient.cpf,
+                    contrato_id: this.currentContract.id
+                };
+                
+                // Atualiza contrato
+                const contracts = JSON.parse(localStorage.getItem('isp_contracts') || '[]');
+                const contractIndex = contracts.findIndex(c => c.id === this.currentContract.id);
+                
+                if (contractIndex > -1) {
+                    contracts[contractIndex].status = 'ASSINADO';
+                    contracts[contractIndex].data_assinatura = signatureData.timestamp;
+                    contracts[contractIndex].metadata = signatureData;
+                    localStorage.setItem('isp_contracts', JSON.stringify(contracts));
+                    
+                    // Atualiza cliente
+                    const clients = JSON.parse(localStorage.getItem('isp_clients') || '[]');
+                    const clientIndex = clients.findIndex(c => c.id === this.currentClient.id);
+                    if (clientIndex > -1) {
+                        clients[clientIndex].status = 'ATIVO';
+                        clients[clientIndex].data_ativacao = signatureData.timestamp;
+                        localStorage.setItem('isp_clients', JSON.stringify(clients));
+                    }
+                    
+                    // Gera protocolo
+                    const protocol = `SIG-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+                    
+                    // Mostra sucesso
+                    document.getElementById('success-screen').classList.remove('hidden');
+                    document.getElementById('protocol-number').textContent = protocol;
+                    document.getElementById('sign-timestamp').textContent = new Date(signatureData.timestamp).toLocaleString('pt-BR');
+                    
+                    // Desabilita botão
+                    document.getElementById('sign-btn').disabled = true;
+                    document.getElementById('sign-btn').innerHTML = '<i class="fas fa-check"></i> Contrato Assinado';
+                    
+                    // Simula liberação da conexão
+                    setTimeout(() => {
+                        alert('Conexão liberada com sucesso! Bem-vindo à FIBRANET!');
+                    }, 2000);
+                }
+            },
+            
+            showLogin() {
+                document.getElementById('login-screen').classList.remove('hidden');
+                document.getElementById('contract-screen').classList.add('hidden');
+                document.getElementById('success-screen').classList.add('hidden');
+                document.getElementById('login-error').classList.add('hidden');
+                document.getElementById('login-cpf').value = '';
+            }
+        };
+        
+        // Inicializa portal
+        Portal.init();
+    </script>
+</body>
+</html>

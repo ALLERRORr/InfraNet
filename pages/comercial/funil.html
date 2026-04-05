@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Funil Comercial - ISP Manager Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 50: '#eff6ff', 100: '#dbeafe', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8' },
+                        secondary: { 50: '#f0fdfa', 100: '#ccfbf1', 500: '#10b981', 600: '#059669' },
+                        dark: { 800: '#1f2937', 900: '#111827' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .kanban-column { min-height: 500px; }
+        .kanban-card { cursor: grab; transition: all 0.2s; }
+        .kanban-card:active { cursor: grabbing; }
+        .kanban-card.dragging { opacity: 0.5; transform: rotate(3deg); }
+        .drag-over { background-color: rgba(59, 130, 246, 0.1); border-color: #3b82f6; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #1f2937; }
+        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 3px; }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+    <div id="app-container" class="flex h-screen overflow-hidden">
+        <!-- Sidebar -->
+        <aside id="sidebar" class="w-64 bg-gray-800 border-r border-gray-700 flex-shrink-0 hidden lg:block">
+            <div class="p-4 border-b border-gray-700">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-network-wired text-white"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-white">ISP Manager</h1>
+                        <p class="text-xs text-gray-400">Provedor FTTH</p>
+                    </div>
+                </div>
+            </div>
+            <nav id="sidebar-nav" class="p-4 space-y-1 overflow-y-auto max-h-[calc(100vh-80px)]"></nav>
+        </aside>
+
+        <!-- Conteúdo Principal -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <!-- Header -->
+            <header id="main-header" class="bg-gray-800 border-b border-gray-700 px-6 py-4"></header>
+
+            <!-- Conteúdo -->
+            <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-900 p-6">
+                <div class="space-y-6">
+                    <!-- Header do Funil -->
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div>
+                            <h1 class="text-2xl font-bold text-white">Funil Comercial</h1>
+                            <p class="text-gray-400 text-sm mt-1">Gestão de leads e conversão de vendas</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="FunilComercial.openLeadModal()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2">
+                                <i class="fas fa-plus"></i><span>Novo Lead</span>
+                            </button>
+                            <button onclick="FunilComercial.exportRelatorio()" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors">
+                                <i class="fas fa-download"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Stats Cards -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                        <div class="bg-gray-800 border border-gray-700 rounded-xl p-4">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-gray-400 text-xs">Novos Leads</p>
+                                    <p class="text-2xl font-bold text-white" id="stat-novo">0</p>
+                                </div>
+                                <div class="w-10 h-10 bg-gray-500/20 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-user-plus text-gray-400"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-gray-800 border border-gray-700 rounded-xl p-4">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-gray-400 text-xs">Viabilidade</p>
+                                    <p class="text-2xl font-bold text-blue-400" id="stat-viabilidade">0</p>
+                                </div>
+                                <div class="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-search-location text-blue-400"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-gray-800 border border-gray-700 rounded-xl p-4">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-gray-400 text-xs">Cadastrados</p>
+                                    <p class="text-2xl font-bold text-indigo-400" id="stat-cadastrado">0</p>
+                                </div>
+                                <div class="w-10 h-10 bg-indigo-500/20 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-file-signature text-indigo-400"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-gray-800 border border-gray-700 rounded-xl p-4">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-gray-400 text-xs">Aguardando Assinatura</p>
+                                    <p class="text-2xl font-bold text-yellow-400" id="stat-assinatura">0</p>
+                                </div>
+                                <div class="w-10 h-10 bg-yellow-500/20 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-pen-fancy text-yellow-400"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-gray-800 border border-gray-700 rounded-xl p-4">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-gray-400 text-xs">Ativos</p>
+                                    <p class="text-2xl font-bold text-green-400" id="stat-ativo">0</p>
+                                </div>
+                                <div class="w-10 h-10 bg-green-500/20 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-check-circle text-green-400"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-gray-800 border border-gray-700 rounded-xl p-4">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-gray-400 text-xs">Taxa Conversão</p>
+                                    <p class="text-2xl font-bold text-emerald-400" id="stat-conversao">0%</p>
+                                </div>
+                                <div class="w-10 h-10 bg-emerald-500/20 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-chart-line text-emerald-400"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Filtros -->
+                    <div class="bg-gray-800 border border-gray-700 rounded-xl p-4">
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Buscar</label>
+                                <input type="text" id="filter-search" placeholder="Nome, telefone..." 
+                                    class="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Bairro</label>
+                                <select id="filter-bairro" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none">
+                                    <option value="">Todos</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Plano</label>
+                                <select id="filter-plano" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none">
+                                    <option value="">Todos</option>
+                                </select>
+                            </div>
+                            <div class="flex items-end">
+                                <button onclick="FunilComercial.applyFilters()" class="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm">
+                                    <i class="fas fa-filter mr-2"></i>Filtrar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Kanban Board -->
+                    <div class="overflow-x-auto pb-4">
+                        <div class="flex gap-4 min-w-max" id="kanban-board">
+                            <!-- Colunas serão renderizadas via JS -->
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modal Novo Lead -->
+    <div id="lead-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-lg">
+            <div class="sticky top-0 bg-gray-800 border-b border-gray-700 p-4 flex items-center justify-between">
+                <h2 class="text-xl font-bold text-white">Novo Lead</h2>
+                <button onclick="FunilComercial.closeLeadModal()" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <form id="lead-form" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Nome Completo *</label>
+                    <input type="text" name="nome" required class="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Telefone/WhatsApp *</label>
+                    <input type="tel" name="telefone" required placeholder="(XX) XXXXX-XXXX" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Endereço *</label>
+                    <input type="text" name="endereco" required placeholder="Rua, número, bairro" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-1">Bairro *</label>
+                        <input type="text" name="bairro" required class="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-1">Cidade</label>
+                        <input type="text" name="cidade" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Plano de Interesse</label>
+                    <select name="plano" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none">
+                        <option value="">Selecione</option>
+                        <option value="100 MEGA">100 MEGA - R$ 69,90</option>
+                        <option value="300 MEGA">300 MEGA - R$ 79,90</option>
+                        <option value="500 MEGA">500 MEGA - R$ 99,90</option>
+                        <option value="1 GIGA">1 GIGA - R$ 129,90</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Observações</label>
+                    <textarea name="observacoes" rows="2" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none"></textarea>
+                </div>
+                <div class="flex gap-3 pt-4 border-t border-gray-700">
+                    <button type="button" onclick="FunilComercial.closeLeadModal()" class="flex-1 px-4 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700">Cancelar</button>
+                    <button type="submit" class="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg">
+                        <i class="fas fa-save mr-2"></i>Salvar Lead
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Detalhes do Cliente -->
+    <div id="client-detail-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div class="sticky top-0 bg-gray-800 border-b border-gray-700 p-4 flex items-center justify-between">
+                <h2 class="text-xl font-bold text-white">Detalhes do Cliente</h2>
+                <button onclick="FunilComercial.closeDetailModal()" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div id="client-detail-content" class="p-6"></div>
+        </div>
+    </div>
+
+    <script src="../../js/core/data.js"></script>
+    <script src="../../js/core/auth.js"></script>
+    <script src="../../js/core/permissions.js"></script>
+    <script src="../../js/components/sidebar.js"></script>
+    <script src="../../js/components/header.js"></script>
+    <script src="../../js/components/toast.js"></script>
+    
+    <script>
+// js/pages/comercial/funil.js
+/**
+ * ISP Manager Pro - Funil Comercial (Kanban)
+ * Gestão visual de leads com drag-and-drop
+ */
+
+const FunilComercial = {
+    columns: [
+        { id: 'NOVO_LEAD', title: 'Novo Lead', color: 'gray', icon: 'fa-user-plus' },
+        { id: 'VIABILIDADE_PENDENTE', title: 'Viabilidade', color: 'blue', icon: 'fa-search-location' },
+        { id: 'VIABILIDADE_APROVADA', title: 'Viável', color: 'cyan', icon: 'fa-check-circle' },
+        { id: 'CADASTRADO', title: 'Cadastrado', color: 'indigo', icon: 'fa-file-signature' },
+        { id: 'CONTRATO_GERADO', title: 'Contrato Gerado', color: 'purple', icon: 'fa-file-contract' },
+        { id: 'AGUARDANDO_INSTALACAO', title: 'Aguardando Instalação', color: 'yellow', icon: 'fa-calendar-alt' },
+        { id: 'INSTALADO', title: 'Instalado', color: 'orange', icon: 'fa-tools' },
+        { id: 'AGUARDANDO_ASSINATURA', title: 'Aguardando Assinatura', color: 'amber', icon: 'fa-pen-fancy' },
+        { id: 'ATIVO', title: 'Ativo', color: 'green', icon: 'fa-check-circle' }
+    ],
+
+    clients: [],
+    draggedCard: null,
+
+    init() {
+        this.clients = JSON.parse(localStorage.getItem('isp_clients') || '[]');
+        this.render();
+        this.setupDragAndDrop();
+        this.updateStats();
+    },
+
+    render() {
+        const board = document.getElementById('kanban-board');
+        if (!board) return;
+
+        board.innerHTML = this.columns.map(col => {
+            const colClients = this.clients.filter(c => c.status === col.id);
+            const colorClasses = {
+                gray: 'border-gray-600 bg-gray-800/50',
+                blue: 'border-blue-600 bg-blue-900/20',
+                cyan: 'border-cyan-600 bg-cyan-900/20',
+                indigo: 'border-indigo-600 bg-indigo-900/20',
+                purple: 'border-purple-600 bg-purple-900/20',
+                yellow: 'border-yellow-600 bg-yellow-900/20',
+                orange: 'border-orange-600 bg-orange-900/20',
+                amber: 'border-amber-600 bg-amber-900/20',
+                green: 'border-green-600 bg-green-900/20'
+            };
+            const headerColors = {
+                gray: 'text-gray-400',
+                blue: 'text-blue-400',
+                cyan: 'text-cyan-400',
+                indigo: 'text-indigo-400',
+                purple: 'text-purple-400',
+                yellow: 'text-yellow-400',
+                orange: 'text-orange-400',
+                amber: 'text-amber-400',
+                green: 'text-green-400'
+            };
+
+            return `
+                <div class="w-80 flex-shrink-0" data-column="${col.id}">
+                    <div class="bg-gray-800 border ${colorClasses[col.color]} rounded-xl p-3 kanban-column">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center gap-2">
+                                <i class="fas ${col.icon} ${headerColors[col.color]}"></i>
+                                <h3 class="font-semibold text-white text-sm">${col.title}</h3>
+                            </div>
+                            <span class="bg-gray-700 text-gray-300 text-xs px-2 py-1 rounded-full">${colClients.length}</span>
+                        </div>
+                        <div class="space-y-2 min-h-[400px]" data-drop-zone="${col.id}">
+                            ${colClients.map(client => this.renderCard(client)).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    },
+
+    renderCard(client) {
+        const plans = JSON.parse(localStorage.getItem('isp_plans') || '[]');
+        const plan = plans.find(p => p.nome === client.plano);
+        
+        return `
+            <div class="kanban-card bg-gray-800 border border-gray-700 rounded-lg p-3 hover:border-blue-500 transition-colors" 
+                 draggable="true" 
+                 data-client-id="${client.id}"
+                 ondragstart="FunilComercial.handleDragStart(event)"
+                 ondragend="FunilComercial.handleDragEnd(event)">
+                <div class="flex items-start justify-between mb-2">
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 bg-blue-500/20 rounded-full flex items-center justify-center">
+                            <i class="fas fa-user text-blue-400 text-xs"></i>
+                        </div>
+                        <div>
+                            <p class="text-white font-medium text-sm truncate max-w-[150px]">${client.nome}</p>
+                            <p class="text-gray-500 text-xs">${client.telefone}</p>
+                        </div>
+                    </div>
+                    <button onclick="FunilComercial.viewClient(${client.id})" class="text-gray-400 hover:text-blue-400">
+                        <i class="fas fa-ellipsis-v text-xs"></i>
+                    </button>
+                </div>
+                <div class="space-y-1 text-xs">
+                    <div class="flex items-center gap-1 text-gray-400">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <span class="truncate">${client.bairro || 'Sem bairro'}</span>
+                    </div>
+                    ${client.plano ? `
+                        <div class="flex items-center gap-1 text-gray-400">
+                            <i class="fas fa-tachometer-alt"></i>
+                            <span>${client.plano}</span>
+                        </div>
+                    ` : ''}
+                    ${plan ? `
+                        <div class="flex items-center gap-1 text-green-400">
+                            <i class="fas fa-dollar-sign"></i>
+                            <span>R$ ${plan.valor.toFixed(2)}</span>
+                        </div>
+                    ` : ''}
+                </div>
+                <div class="mt-2 pt-2 border-t border-gray-700 flex gap-2">
+                    <button onclick="FunilComercial.quickCall('${client.telefone}')" class="flex-1 px-2 py-1 bg-green-600/20 hover:bg-green-600/40 text-green-400 rounded text-xs transition-colors">
+                        <i class="fas fa-phone"></i>
+                    </button>
+                    <button onclick="FunilComercial.quickWhatsApp('${client.telefone}')" class="flex-1 px-2 py-1 bg-green-600/20 hover:bg-green-600/40 text-green-400 rounded text-xs transition-colors">
+                        <i class="fab fa-whatsapp"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    },
+
+    setupDragAndDrop() {
+        const dropZones = document.querySelectorAll('[data-drop-zone]');
+        dropZones.forEach(zone => {
+            zone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                zone.parentElement.classList.add('drag-over');
+            });
+            zone.addEventListener('dragleave', () => {
+                zone.parentElement.classList.remove('drag-over');
+            });
+            zone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                zone.parentElement.classList.remove('drag-over');
+                this.handleDrop(e, zone.dataset.dropZone);
+            });
+        });
+    },
+
+    handleDragStart(e) {
+        this.draggedCard = e.target;
+        e.target.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+    },
+
+    handleDragEnd(e) {
+        e.target.classList.remove('dragging');
+        this.draggedCard = null;
+    },
+
+    handleDrop(e, newStatus) {
+        const clientId = parseInt(this.draggedCard.dataset.clientId);
+        const clientIndex = this.clients.findIndex(c => c.id === clientId);
+        
+        if (clientIndex === -1) return;
+
+        const oldStatus = this.clients[clientIndex].status;
+        
+        // Verifica permissão para mudança de status
+        const user = Auth.checkSession();
+        if (!Permissions.canChangeClientStatus(oldStatus, newStatus, user)) {
+            Toast.error('Você não tem permissão para mover este cliente para esta etapa.');
+            return;
+        }
+
+        // Regras de negócio
+        if (newStatus === 'ATIVO' && oldStatus !== 'AGUARDANDO_ASSINATURA') {
+            Toast.error('Só é possível ativar clientes que assinaram o contrato.');
+            return;
+        }
+
+        // Atualiza status
+        this.clients[clientIndex].status = newStatus;
+        this.clients[clientIndex].data_atualizacao = new Date().toISOString();
+        
+        // Ações específicas por transição
+        if (newStatus === 'CADASTRADO' && oldStatus === 'VIABILIDADE_APROVADA') {
+            Toast.info('Cliente cadastrado! Gere o contrato na próxima etapa.');
+        }
+        
+        if (newStatus === 'AGUARDANDO_ASSINATURA') {
+            this.enviarPortalAssinatura(clientId);
+        }
+
+        localStorage.setItem('isp_clients', JSON.stringify(this.clients));
+        
+        // Log de auditoria
+        Auth.logAction(user.id, 'MUDANCA_STATUS_FUNIL', `Cliente ${clientId}: ${oldStatus} → ${newStatus}`);
+        
+        Toast.success(`Cliente movido para ${this.columns.find(c => c.id === newStatus)?.title}`);
+        this.render();
+        this.updateStats();
+    },
+
+    quickCall(phone) {
+        // Integração com NVOIP - click to call
+        const cleanPhone = phone.replace(/\D/g, '');
+        window.open(`../../pages/nvoip/index.html?call=${cleanPhone}`, '_blank');
+        Toast.info('Discando...');
+    },
+
+    quickWhatsApp(phone) {
+        const cleanPhone = phone.replace(/\D/g, '');
+        window.open(`https://wa.me/55${cleanPhone}?text=Olá! Sou da equipe comercial. Como posso ajudar?`, '_blank');
+    },
+
+    viewClient(id) {
+        const client = this.clients.find(c => c.id === id);
+        if (!client) return;
+
+        const content = document.getElementById('client-detail-content');
+        content.innerHTML = `
+            <div class="space-y-6">
+                <div class="flex items-center gap-4">
+                    <div class="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center">
+                        <i class="fas fa-user text-blue-400 text-2xl"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold text-white">${client.nome}</h3>
+                        <p class="text-gray-400">CPF: ${client.cpf || 'Não informado'}</p>
+                        <span class="inline-block mt-1 px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded-full">${client.status}</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-gray-900 rounded-lg p-3">
+                        <p class="text-gray-400 text-xs mb-1"><i class="fas fa-phone mr-1"></i>Telefone</p>
+                        <p class="text-white">${client.telefone}</p>
+                    </div>
+                    <div class="bg-gray-900 rounded-lg p-3">
+                        <p class="text-gray-400 text-xs mb-1"><i class="fas fa-envelope mr-1"></i>E-mail</p>
+                        <p class="text-white">${client.email || 'Não informado'}</p>
+                    </div>
+                    <div class="bg-gray-900 rounded-lg p-3 col-span-2">
+                        <p class="text-gray-400 text-xs mb-1"><i class="fas fa-map-marker-alt mr-1"></i>Endereço</p>
+                        <p class="text-white">${client.endereco || 'Não informado'}</p>
+                        <p class="text-gray-400 text-sm">${client.bairro || ''} - ${client.cidade || ''}/${client.uf || ''}</p>
+                    </div>
+                    <div class="bg-gray-900 rounded-lg p-3">
+                        <p class="text-gray-400 text-xs mb-1"><i class="fas fa-tachometer-alt mr-1"></i>Plano</p>
+                        <p class="text-white">${client.plano || 'Não definido'}</p>
+                    </div>
+                    <div class="bg-gray-900 rounded-lg p-3">
+                        <p class="text-gray-400 text-xs mb-1"><i class="fas fa-calendar mr-1"></i>Vencimento</p>
+                        <p class="text-white">Dia ${client.vencimento || '-'}</p>
+                    </div>
+                </div>
+
+                <div class="flex gap-3 pt-4 border-t border-gray-700">
+                    <button onclick="FunilComercial.quickCall('${client.telefone}')" class="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg">
+                        <i class="fas fa-phone mr-2"></i>Ligar
+                    </button>
+                    <button onclick="FunilComercial.quickWhatsApp('${client.telefone}')" class="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg">
+                        <i class="fab fa-whatsapp mr-2"></i>WhatsApp
+                    </button>
+                    ${client.status === 'VIABILIDADE_PENDENTE' ? `
+                        <button onclick="FunilComercial.aprovarViabilidade(${client.id})" class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">
+                            <i class="fas fa-check mr-2"></i>Aprovar
+                        </button>
+                    ` : ''}
+                    ${client.status === 'CADASTRADO' ? `
+                        <button onclick="FunilComercial.gerarContrato(${client.id})" class="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg">
+                            <i class="fas fa-file-contract mr-2"></i>Gerar Contrato
+                        </button>
+                    ` : ''}
+                    ${client.status === 'INSTALADO' ? `
+                        <button onclick="FunilComercial.enviarPortalAssinatura(${client.id})" class="flex-1 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg">
+                            <i class="fas fa-paper-plane mr-2"></i>Enviar Portal
+                        </button>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+        document.getElementById('client-detail-modal').classList.remove('hidden');
+    },
+
+    openLeadModal() {
+        document.getElementById('lead-modal').classList.remove('hidden');
+    },
+
+    closeLeadModal() {
+        document.getElementById('lead-modal').classList.add('hidden');
+        document.getElementById('lead-form').reset();
+    },
+
+    closeDetailModal() {
+        document.getElementById('client-detail-modal').classList.add('hidden');
+    },
+
+    updateStats() {
+        const stats = {
+            'NOVO_LEAD': 0,
+            'VIABILIDADE_PENDENTE': 0,
+            'VIABILIDADE_APROVADA': 0,
+            'CADASTRADO': 0,
+            'AGUARDANDO_ASSINATURA': 0,
+            'ATIVO': 0
+        };
+
+        this.clients.forEach(c => {
+            if (stats[c.status] !== undefined) stats[c.status]++;
+        });
+
+        document.getElementById('stat-novo').textContent = stats['NOVO_LEAD'];
+        document.getElementById('stat-viabilidade').textContent = stats['VIABILIDADE_PENDENTE'] + stats['VIABILIDADE_APROVADA'];
+        document.getElementById('stat-cadastrado').textContent = stats['CADASTRADO'];
+        document.getElementById('stat-assinatura').textContent = stats['AGUARDANDO_ASSINATURA'];
+        document.getElementById('stat-ativo').textContent = stats['ATIVO'];
+
+        const totalLeads = Object.values(stats).reduce((a, b) => a + b, 0);
+        const conversionRate = totalLeads > 0 ? ((stats['ATIVO'] / totalLeads) * 100).toFixed(1) : 0;
+        document.getElementById('stat-conversao').textContent = `${conversionRate}%`;
+    },
+
+    applyFilters() {
+        const search = document.getElementById('filter-search')?.value.toLowerCase() || '';
+        const bairro = document.getElementById('filter-bairro')?.value || '';
+        const plano = document.getElementById('filter-plano')?.value || '';
+
+        let filtered = [...this.clients];
+
+        if (search) {
+            filtered = filtered.filter(c => 
+                c.nome.toLowerCase().includes(search) || 
+                c.telefone.includes(search)
+            );
+        }
+        if (bairro) filtered = filtered.filter(c => c.bairro === bairro);
+        if (plano) filtered = filtered.filter(c => c.plano === plano);
+
+        // Re-renderiza apenas os cards
+        this.columns.forEach(col => {
+            const zone = document.querySelector(`[data-drop-zone="${col.id}"]`);
+            if (zone) {
+                const colClients = filtered.filter(c => c.status === col.id);
+                zone.innerHTML = colClients.map(client => this.renderCard(client)).join('');
+            }
+        });
+    },
+
+    async salvarLead(formData) {
+        const newClient = {
+            id: Date.now(),
+            nome: formData.get('nome'),
+            telefone: formData.get('telefone'),
+            endereco: formData.get('endereco'),
+            bairro: formData.get('bairro'),
+            cidade: formData.get('cidade'),
+            plano: formData.get('plano'),
+            observacoes: formData.get('observacoes'),
+            status: 'NOVO_LEAD',
+            data_criacao: new Date().toISOString(),
+            data_atualizacao: new Date().toISOString()
+        };
+
+        this.clients.push(newClient);
+        localStorage.setItem('isp_clients', JSON.stringify(this.clients));
+        
+        const user = Auth.checkSession();
+        Auth.logAction(user.id, 'NOVO_LEAD', `Lead criado: ${newClient.nome}`);
+        
+        Toast.success('Lead criado com sucesso!');
+        this.closeLeadModal();
+        this.render();
+        this.updateStats();
+    },
+
+    aprovarViabilidade(clientId) {
+        const index = this.clients.findIndex(c => c.id === clientId);
+        if (index === -1) return;
+
+        this.clients[index].status = 'VIABILIDADE_APROVADA';
+        this.clients[index].data_atualizacao = new Date().toISOString();
+        
+        localStorage.setItem('isp_clients', JSON.stringify(this.clients));
+        
+        const user = Auth.checkSession();
+        Auth.logAction(user.id, 'VIABILIDADE_APROVADA', `Cliente ${clientId} aprovado`);
+        
+        Toast.success('Viabilidade aprovada! Prosseguir com cadastro completo.');
+        this.render();
+    },
+
+    gerarContrato(clientId) {
+        const client = this.clients.find(c => c.id === clientId);
+        if (!client) return;
+
+        // Cria contrato
+        const contracts = JSON.parse(localStorage.getItem('isp_contracts') || '[]');
+        contracts.push({
+            id: Date.now(),
+            cliente_id: clientId,
+            status: 'PENDENTE',
+            data_geracao: new Date().toISOString(),
+            plano: client.plano,
+            valor: client.valor || 0,
+            vencimento: client.vencimento || 10,
+            data_inicio: new Date(Date.now() + 3*24*60*60*1000).toISOString().split('T')[0]
+        });
+        localStorage.setItem('isp_contracts', JSON.stringify(contracts));
+
+        // Atualiza cliente
+        const index = this.clients.findIndex(c => c.id === clientId);
+        this.clients[index].status = 'CONTRATO_GERADO';
+        this.clients[index].data_atualizacao = new Date().toISOString();
+        localStorage.setItem('isp_clients', JSON.stringify(this.clients));
+
+        const user = Auth.checkSession();
+        Auth.logAction(user.id, 'CONTRATO_GERADO', `Contrato gerado para cliente ${clientId}`);
+
+        Toast.success('Contrato gerado! Agende a instalação.');
+        this.render();
+    },
+
+    enviarPortalAssinatura(clientId) {
+        const client = this.clients.find(c => c.id === clientId);
+        if (!client) return;
+
+        // Simula envio de e-mail/WhatsApp
+        const cpfLimpo = client.cpf ? client.cpf.replace(/\D/g, '') : '00000000000';
+        const portalUrl = `${window.location.origin}/portal.html`;
+        
+        // Atualiza status
+        const index = this.clients.findIndex(c => c.id === clientId);
+        this.clients[index].status = 'AGUARDANDO_ASSINATURA';
+        this.clients[index].data_atualizacao = new Date().toISOString();
+        localStorage.setItem('isp_clients', JSON.stringify(this.clients));
+
+        const user = Auth.checkSession();
+        Auth.logAction(user.id, 'PORTAL_ENVIADO', `Portal enviado para ${client.nome} (${client.telefone})`);
+
+        // Mostra mensagem com dados de acesso
+        alert(`📧 Portal de Assinatura Enviado!\n\nCliente: ${client.nome}\nLink: ${portalUrl}\nUsuário: ${cpfLimpo}\nSenha: ${cpfLimpo}\n\nMensagem enviada por WhatsApp/E-mail.`);
+        
+        Toast.success('Portal de assinatura enviado ao cliente!');
+        this.render();
+    },
+
+    exportRelatorio() {
+        const csvContent = "data:text/csv;charset=utf-8," 
+            + "ID,Nome,Telefone,Bairro,Plano,Status,Valor,Vencimento\n"
+            + this.clients.map(c => 
+                `${c.id},${c.nome},${c.telefone},${c.bairro||''},${c.plano||''},${c.status},${c.valor||0},${c.vencimento||''}`
+            ).join("\n");
+        
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `relatorio_comercial_${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        Toast.success('Relatório exportado!');
+    }
+};
+
+// Inicialização
+document.addEventListener('DOMContentLoaded', () => {
+    // Renderiza sidebar e header
+    Sidebar.render();
+    Header.render();
+    
+    // Inicializa funil
+    FunilComercial.init();
+
+    // Setup form submit
+    document.getElementById('lead-form')?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        FunilComercial.salvarLead(new FormData(e.target));
+    });
+
+    // Popula filtros
+    const clients = JSON.parse(localStorage.getItem('isp_clients') || '[]');
+    const bairros = [...new Set(clients.map(c => c.bairro).filter(Boolean))];
+    const bairroSelect = document.getElementById('filter-bairro');
+    bairros.forEach(b => {
+        const opt = document.createElement('option');
+        opt.value = b;
+        opt.textContent = b;
+        bairroSelect.appendChild(opt);
+    });
+
+    const planos = JSON.parse(localStorage.getItem('isp_plans') || '[]');
+    const planoSelect = document.getElementById('filter-plano');
+    planos.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.nome;
+        opt.textContent = p.nome;
+        planoSelect.appendChild(opt);
+    });
+});
+    </script>
+</body>
+</html>
