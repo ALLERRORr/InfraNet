@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Central de Suporte - ISP Manager Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 50: '#eff6ff', 100: '#dbeafe', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8' },
+                        secondary: { 50: '#f0fdfa', 100: '#ccfbf1', 500: '#10b981', 600: '#059669' },
+                        dark: { 800: '#1f2937', 900: '#111827' }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+    <div id="app-container" class="flex h-screen overflow-hidden">
+        <!-- Sidebar -->
+        <aside id="sidebar" class="w-64 bg-gray-800 border-r border-gray-700 flex-shrink-0 hidden lg:block"></aside>
+
+        <!-- Conteúdo Principal -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <!-- Header -->
+            <header id="main-header" class="bg-gray-800 border-b border-gray-700 px-6 py-4"></header>
+
+            <!-- Conteúdo -->
+            <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-900 p-6">
+                <div class="space-y-6">
+                    <!-- Header -->
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div>
+                            <h1 class="text-2xl font-bold text-white">Central de Suporte</h1>
+                            <p class="text-gray-400 text-sm mt-1">Gestão de chamados e atendimento ao cliente</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="Suporte.openChamadoModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2">
+                                <i class="fas fa-plus"></i><span>Novo Chamado</span>
+                            </button>
+                            <button onclick="Suporte.exportarRelatorio()" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors">
+                                <i class="fas fa-download"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- KPI Cards -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="bg-gray-800 border border-gray-700 rounded-xl p-4">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-gray-400 text-xs">Chamados Abertos</p>
+                                    <p class="text-2xl font-bold text-yellow-400" id="kpi-abertos">0</p>
+                                </div>
+                                <div class="w-10 h-10 bg-yellow-500/20 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-ticket-alt text-yellow-400"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-gray-800 border border-gray-700 rounded-xl p-4">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-gray-400 text-xs">Em Andamento</p>
+                                    <p class="text-2xl font-bold text-blue-400" id="kpi-andamento">0</p>
+                                </div>
+                                <div class="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-clock text-blue-400"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-gray-800 border border-gray-700 rounded-xl p-4">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-gray-400 text-xs">Resolvidos Hoje</p>
+                                    <p class="text-2xl font-bold text-green-400" id="kpi-resolvidos">0</p>
+                                </div>
+                                <div class="w-10 h-10 bg-green-500/20 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-check-circle text-green-400"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-gray-800 border border-gray-700 rounded-xl p-4">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-gray-400 text-xs">Tempo Médio (TMA)</p>
+                                    <p class="text-2xl font-bold text-purple-400" id="kpi-tma">0m</p>
+                                </div>
+                                <div class="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-hourglass-half text-purple-400"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Filtros -->
+                    <div class="bg-gray-800 border border-gray-700 rounded-xl p-4">
+                        <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                            <div class="md:col-span-2">
+                                <label class="block text-xs text-gray-400 mb-1">Buscar</label>
+                                <input type="text" id="filter-search" placeholder="Cliente, protocolo..." 
+                                    class="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Status</label>
+                                <select id="filter-status" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none">
+                                    <option value="">Todos</option>
+                                    <option value="ABERTO">Aberto</option>
+                                    <option value="EM_ANDAMENTO">Em Andamento</option>
+                                    <option value="AGUARDANDO_CLIENTE">Aguardando Cliente</option>
+                                    <option value="RESOLVIDO">Resolvido</option>
+                                    <option value="FECHADO">Fechado</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Prioridade</label>
+                                <select id="filter-prioridade" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none">
+                                    <option value="">Todas</option>
+                                    <option value="BAIXA">Baixa</option>
+                                    <option value="MEDIA">Média</option>
+                                    <option value="ALTA">Alta</option>
+                                    <option value="CRITICA">Crítica</option>
+                                </select>
+                            </div>
+                            <div class="flex items-end">
+                                <button onclick="Suporte.applyFilters()" class="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm">
+                                    <i class="fas fa-filter mr-2"></i>Filtrar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Lista de Chamados -->
+                    <div class="bg-gray-800 border border-gray-700 rounded-xl overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead class="bg-gray-900/50">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Protocolo</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Cliente</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Assunto</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Prioridade</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Status</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Atendente</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Criado</th>
+                                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="chamados-table-body" class="divide-y divide-gray-700"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modal Novo Chamado -->
+    <div id="chamado-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div class="sticky top-0 bg-gray-800 border-b border-gray-700 p-4 flex items-center justify-between">
+                <h2 class="text-xl font-bold text-white">Novo Chamado</h2>
+                <button onclick="Suporte.closeChamadoModal()" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <form id="chamado-form" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Cliente *</label>
+                    <select name="cliente_id" required class="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none">
+                        <option value="">Selecione</option>
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-1">Assunto *</label>
+                        <input type="text" name="assunto" required class="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-1">Categoria</label>
+                        <select name="categoria" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none">
+                            <option value="TECNICO">Problema Técnico</option>
+                            <option value="FINANCEIRO">Financeiro</option>
+                            <option value="COMERCIAL">Comercial</option>
+                            <option value="OUTROS">Outros</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-1">Prioridade *</label>
+                        <select name="prioridade" required class="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none">
+                            <option value="BAIXA">Baixa</option>
+                            <option value="MEDIA" selected>Média</option>
+                            <option value="ALTA">Alta</option>
+                            <option value="CRITICA">Crítica</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-1">Tipo</label>
+                        <select name="tipo" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none">
+                            <option value="TELEFONE">Telefone</option>
+                            <option value="WHATSAPP">WhatsApp</option>
+                            <option value="EMAIL">E-mail</option>
+                            <option value="CHAT">Chat</option>
+                            <option value="PRESENCIAL">Presencial</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Descrição *</label>
+                    <textarea name="descricao" required rows="4" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none" placeholder="Descreva o problema relatado pelo cliente..."></textarea>
+                </div>
+                <div class="flex gap-3 pt-4 border-t border-gray-700">
+                    <button type="button" onclick="Suporte.closeChamadoModal()" class="flex-1 px-4 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700">Cancelar</button>
+                    <button type="submit" class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">
+                        <i class="fas fa-save mr-2"></i>Criar Chamado
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Detalhes do Chamado -->
+    <div id="detalhe-chamado-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div class="sticky top-0 bg-gray-800 border-b border-gray-700 p-4 flex items-center justify-between">
+                <h2 class="text-xl font-bold text-white">Detalhes do Chamado</h2>
+                <button onclick="Suporte.closeDetalheModal()" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div id="detalhe-chamado-content" class="p-6"></div>
+        </div>
+    </div>
+
+    <script src="../../js/core/data.js"></script>
+    <script src="../../js/core/auth.js"></script>
+    <script src="../../js/core/permissions.js"></script>
+    <script src="../../js/components/sidebar.js"></script>
+    <script src="../../js/components/header.js"></script>
+    <script src="../../js/components/toast.js"></script>
+    
+    <script>
+// js/pages/suporte/chamados.js
+/**
+ * ISP Manager Pro - Central de Suporte
+ * Gestão de chamados e atendimentos
+ */
+
+const Suporte = {
+    chamados: [],
+    clients: [],
+    users: [],
+
+    init() {
+        this.chamados = JSON.parse(localStorage.getItem('isp_chamados') || '[]');
+        this.clients = JSON.parse(localStorage.getItem('isp_clients') || '[]');
+        this.users = JSON.parse(localStorage.getItem('isp_users') || '[]');
+        
+        // Seed inicial se não existir
+        if (!this.chamados.length) {
+            this.seedChamados();
+        }
+        
+        this.render();
+        this.updateKPIs();
+    },
+
+    seedChamados() {
+        const sampleChamados = [
+            {
+                id: 5001,
+                protocolo: 'CHM-2026-001',
+                cliente_id: 1005,
+                assunto: 'Internet lenta',
+                categoria: 'TECNICO',
+                prioridade: 'ALTA',
+                status: 'ABERTO',
+                tipo: 'TELEFONE',
+                descricao: 'Cliente relata que a internet está oscilando e caindo constantemente.',
+                atendente_id: 6,
+                data_abertura: new Date(Date.now() - 2*60*60*1000).toISOString(),
+                data_atualizacao: new Date().toISOString(),
+                historico: []
+            },
+            {
+                id: 5002,
+                protocolo: 'CHM-2026-002',
+                cliente_id: 1002,
+                assunto: 'Segunda via de boleto',
+                categoria: 'FINANCEIRO',
+                prioridade: 'BAIXA',
+                status: 'RESOLVIDO',
+                tipo: 'WHATSAPP',
+                descricao: 'Cliente solicitou segunda via do boleto vencido.',
+                atendente_id: 6,
+                data_abertura: new Date(Date.now() - 24*60*60*1000).toISOString(),
+                data_resolucao: new Date(Date.now() - 20*60*60*1000).toISOString(),
+                data_atualizacao: new Date().toISOString(),
+                historico: [
+                    { data: new Date().toISOString(), usuario: 'Pedro Suporte', acao: 'Chamado resolvido', observacao: 'Boleto enviado por WhatsApp' }
+                ]
+            },
+            {
+                id: 5003,
+                protocolo: 'CHM-2026-003',
+                cliente_id: 1003,
+                assunto: 'Sem sinal na ONU',
+                categoria: 'TECNICO',
+                prioridade: 'CRITICA',
+                status: 'EM_ANDAMENTO',
+                tipo: 'TELEFONE',
+                descricao: 'Cliente sem conexão desde manhã. ONU sem sinal óptico.',
+                atendente_id: 6,
+                data_abertura: new Date(Date.now() - 4*60*60*1000).toISOString(),
+                data_atualizacao: new Date().toISOString(),
+                historico: [
+                    { data: new Date(Date.now() - 3*60*60*1000).toISOString(), usuario: 'Pedro Suporte', acao: 'Abertura de OS', observacao: 'OS #2003 criada para visita técnica' }
+                ]
+            }
+        ];
+        
+        localStorage.setItem('isp_chamados', JSON.stringify(sampleChamados));
+        this.chamados = sampleChamados;
+    },
+
+    render() {
+        const tbody = document.getElementById('chamados-table-body');
+        if (!tbody) return;
+
+        tbody.innerHTML = this.chamados.map(ch => this.renderRow(ch)).join('');
+    },
+
+    renderRow(chamado) {
+        const client = this.clients.find(c => c.id === chamado.cliente_id);
+        const atendente = this.users.find(u => u.id === chamado.atendente_id);
+        
+        const prioridadeColors = {
+            'BAIXA': 'bg-gray-500/20 text-gray-400',
+            'MEDIA': 'bg-blue-500/20 text-blue-400',
+            'ALTA': 'bg-orange-500/20 text-orange-400',
+            'CRITICA': 'bg-red-500/20 text-red-400 animate-pulse'
+        };
+
+        const statusColors = {
+            'ABERTO': 'bg-yellow-500/20 text-yellow-400',
+            'EM_ANDAMENTO': 'bg-blue-500/20 text-blue-400',
+            'AGUARDANDO_CLIENTE': 'bg-purple-500/20 text-purple-400',
+            'RESOLVIDO': 'bg-green-500/20 text-green-400',
+            'FECHADO': 'bg-gray-500/20 text-gray-400'
+        };
+
+        const categoriaIcons = {
+            'TECNICO': 'fa-wrench',
+            'FINANCEIRO': 'fa-dollar-sign',
+            'COMERCIAL': 'fa-shopping-cart',
+            'OUTROS': 'fa-question'
+        };
+
+        const dataAbertura = new Date(chamado.data_abertura);
+        const agora = new Date();
+        const horasAberto = Math.floor((agora - dataAbertura) / (1000 * 60 * 60));
+
+        return `
+            <tr class="hover:bg-gray-700/30 transition-colors ${chamado.prioridade === 'CRITICA' ? 'bg-red-900/10' : ''}">
+                <td class="px-4 py-3">
+                    <span class="text-white font-mono text-sm">${chamado.protocolo}</span>
+                </td>
+                <td class="px-4 py-3">
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 bg-blue-500/20 rounded-full flex items-center justify-center">
+                            <i class="fas fa-user text-blue-400 text-xs"></i>
+                        </div>
+                        <div>
+                            <p class="text-white text-sm font-medium">${client?.nome || 'N/A'}</p>
+                            <p class="text-gray-500 text-xs">${client?.telefone || ''}</p>
+                        </div>
+                    </div>
+                </td>
+                <td class="px-4 py-3">
+                    <div class="flex items-center gap-2">
+                        <i class="fas ${categoriaIcons[chamado.categoria]} text-gray-400"></i>
+                        <span class="text-gray-300 text-sm">${chamado.assunto}</span>
+                    </div>
+                </td>
+                <td class="px-4 py-3">
+                    <span class="px-2 py-1 rounded-full text-xs font-medium ${prioridadeColors[chamado.prioridade]}">
+                        ${chamado.prioridade}
+                    </span>
+                </td>
+                <td class="px-4 py-3">
+                    <span class="px-2 py-1 rounded-full text-xs font-medium ${statusColors[chamado.status]}">
+                        ${chamado.status.replace('_', ' ')}
+                    </span>
+                </td>
+                <td class="px-4 py-3 text-gray-400 text-sm">
+                    ${atendente?.nome.split(' ')[0] || 'Não atribuído'}
+                </td>
+                <td class="px-4 py-3 text-gray-400 text-sm">
+                    <div>${dataAbertura.toLocaleDateString('pt-BR')}</div>
+                    <div class="text-xs text-gray-500">${horasAberto}h atrás</div>
+                </td>
+                <td class="px-4 py-3 text-right">
+                    <button onclick="Suporte.viewChamado(${chamado.id})" class="p-2 hover:bg-gray-700 rounded-lg text-gray-400 hover:text-blue-400 transition-colors" title="Ver detalhes">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button onclick="Suporte.quickWhatsApp('${client?.telefone}')" class="p-2 hover:bg-gray-700 rounded-lg text-gray-400 hover:text-green-400 transition-colors" title="WhatsApp">
+                        <i class="fab fa-whatsapp"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    },
+
+    updateKPIs() {
+        const abertos = this.chamados.filter(c => c.status === 'ABERTO').length;
+        const andamento = this.chamados.filter(c => c.status === 'EM_ANDAMENTO').length;
+        
+        const hoje = new Date().toDateString();
+        const resolvidosHoje = this.chamados.filter(c => 
+            c.status === 'RESOLVIDO' && 
+            new Date(c.data_resolucao).toDateString() === hoje
+        ).length;
+
+        // Calcula TMA médio (em minutos)
+        const temposResolucao = this.chamados
+            .filter(c => c.data_resolucao)
+            .map(c => (new Date(c.data_resolucao) - new Date(c.data_abertura)) / (1000 * 60));
+        const tmaMedio = temposResolucao.length > 0 
+            ? Math.round(temposResolucao.reduce((a, b) => a + b, 0) / temposResolucao.length)
+            : 0;
+
+        document.getElementById('kpi-abertos').textContent = abertos;
+        document.getElementById('kpi-andamento').textContent = andamento;
+        document.getElementById('kpi-resolvidos').textContent = resolvidosHoje;
+        document.getElementById('kpi-tma').textContent = `${tmaMedio}m`;
+    },
+
+    openChamadoModal() {
+        const select = document.querySelector('[name="cliente_id"]');
+        select.innerHTML = '<option value="">Selecione</option>' + 
+            this.clients
+                .filter(c => c.status !== 'CANCELADO')
+                .map(c => `<option value="${c.id}">${c.nome} - ${c.telefone}</option>`)
+                .join('');
+        
+        document.getElementById('chamado-modal').classList.remove('hidden');
+    },
+
+    closeChamadoModal() {
+        document.getElementById('chamado-modal').classList.add('hidden');
+        document.getElementById('chamado-form').reset();
+    },
+
+    closeDetalheModal() {
+        document.getElementById('detalhe-chamado-modal').classList.add('hidden');
+    },
+
+    viewChamado(id) {
+        const chamado = this.chamados.find(c => c.id === id);
+        if (!chamado) return;
+
+        const client = this.clients.find(c => c.id === chamado.cliente_id);
+        const atendente = this.users.find(u => u.id === chamado.atendente_id);
+
+        const content = document.getElementById('detalhe-chamado-content');
+        content.innerHTML = `
+            <div class="space-y-6">
+                <!-- Header -->
+                <div class="flex items-start justify-between">
+                    <div>
+                        <div class="flex items-center gap-3 mb-2">
+                            <span class="text-2xl font-bold text-white">${chamado.protocolo}</span>
+                            <span class="px-3 py-1 rounded-full text-sm font-medium ${this.getStatusColor(chamado.status)}">
+                                ${chamado.status.replace('_', ' ')}
+                            </span>
+                        </div>
+                        <p class="text-gray-400">${chamado.assunto}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-gray-400 text-sm">Prioridade</p>
+                        <span class="px-3 py-1 rounded-full text-sm font-medium ${this.getPrioridadeColor(chamado.prioridade)}">
+                            ${chamado.prioridade}
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Dados do Cliente -->
+                <div class="bg-gray-900 rounded-lg p-4">
+                    <h3 class="text-lg font-semibold text-white mb-3">Dados do Cliente</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <p class="text-gray-400 text-xs">Nome</p>
+                            <p class="text-white">${client?.nome || 'N/A'}</p>
+                        </div>
+                        <div>
+                            <p class="text-gray-400 text-xs">Telefone</p>
+                            <p class="text-white">${client?.telefone || 'N/A'}</p>
+                        </div>
+                        <div class="col-span-2">
+                            <p class="text-gray-400 text-xs">Endereço</p>
+                            <p class="text-white">${client?.endereco || 'N/A'}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detalhes do Chamado -->
+                <div class="bg-gray-900 rounded-lg p-4">
+                    <h3 class="text-lg font-semibold text-white mb-3">Detalhes</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <p class="text-gray-400 text-xs">Categoria</p>
+                            <p class="text-white">${chamado.categoria}</p>
+                        </div>
+                        <div>
+                            <p class="text-gray-400 text-xs">Tipo</p>
+                            <p class="text-white">${chamado.tipo}</p>
+                        </div>
+                        <div>
+                            <p class="text-gray-400 text-xs">Atendente</p>
+                            <p class="text-white">${atendente?.nome || 'Não atribuído'}</p>
+                        </div>
+                        <div>
+                            <p class="text-gray-400 text-xs">Aberto em</p>
+                            <p class="text-white">${new Date(chamado.data_abertura).toLocaleString('pt-BR')}</p>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <p class="text-gray-400 text-xs mb-1">Descrição</p>
+                        <p class="text-gray-300">${chamado.descricao}</p>
+                    </div>
+                </div>
+
+                <!-- Histórico -->
+                <div class="bg-gray-900 rounded-lg p-4">
+                    <h3 class="text-lg font-semibold text-white mb-3">Histórico</h3>
+                    <div class="space-y-3">
+                        ${chamado.historico?.length ? chamado.historico.map(h => `
+                            <div class="border-l-2 border-blue-500 pl-4 py-2">
+                                <p class="text-gray-400 text-xs">${new Date(h.data).toLocaleString('pt-BR')} - ${h.usuario}</p>
+                                <p class="text-white font-medium">${h.acao}</p>
+                                ${h.observacao ? `<p class="text-gray-500 text-sm">${h.observacao}</p>` : ''}
+                            </div>
+                        `).join('') : '<p class="text-gray-500">Sem histórico</p>'}
+                    </div>
+                </div>
+
+                <!-- Ações -->
+                <div class="flex gap-3 pt-4 border-t border-gray-700">
+                    ${chamado.status === 'ABERTO' ? `
+                        <button onclick="Suporte.atualizarStatus(${chamado.id}, 'EM_ANDAMENTO')" class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">
+                            <i class="fas fa-play mr-2"></i>Iniciar Atendimento
+                        </button>
+                    ` : ''}
+                    ${chamado.status === 'EM_ANDAMENTO' ? `
+                        <button onclick="Suporte.atualizarStatus(${chamado.id}, 'RESOLVIDO')" class="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg">
+                            <i class="fas fa-check mr-2"></i>Resolver
+                        </button>
+                    ` : ''}
+                    <button onclick="Suporte.quickWhatsApp('${client?.telefone}')" class="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg">
+                        <i class="fab fa-whatsapp mr-2"></i>WhatsApp
+                    </button>
+                    <button onclick="Suporte.adicionarHistorico(${chamado.id})" class="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg">
+                        <i class="fas fa-comment mr-2"></i>Adicionar Obs
+                    </button>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('detalhe-chamado-modal').classList.remove('hidden');
+    },
+
+    getStatusColor(status) {
+        const colors = {
+            'ABERTO': 'bg-yellow-500/20 text-yellow-400',
+            'EM_ANDAMENTO': 'bg-blue-500/20 text-blue-400',
+            'AGUARDANDO_CLIENTE': 'bg-purple-500/20 text-purple-400',
+            'RESOLVIDO': 'bg-green-500/20 text-green-400',
+            'FECHADO': 'bg-gray-500/20 text-gray-400'
+        };
+        return colors[status] || 'bg-gray-500/20';
+    },
+
+    getPrioridadeColor(prioridade) {
+        const colors = {
+            'BAIXA': 'bg-gray-500/20 text-gray-400',
+            'MEDIA': 'bg-blue-500/20 text-blue-400',
+            'ALTA': 'bg-orange-500/20 text-orange-400',
+            'CRITICA': 'bg-red-500/20 text-red-400'
+        };
+        return colors[prioridade] || 'bg-gray-500/20';
+    },
+
+    atualizarStatus(id, novoStatus) {
+        const index = this.chamados.findIndex(c => c.id === id);
+        if (index === -1) return;
+
+        const user = Auth.checkSession();
+        this.chamados[index].status = novoStatus;
+        this.chamados[index].data_atualizacao = new Date().toISOString();
+        
+        if (novoStatus === 'RESOLVIDO') {
+            this.chamados[index].data_resolucao = new Date().toISOString();
+        }
+
+        // Adiciona ao histórico
+        this.chamados[index].historico.push({
+            data: new Date().toISOString(),
+            usuario: user.nome,
+            acao: 'Status alterado',
+            observacao: `De ${this.chamados[index].status} para ${novoStatus}`
+        });
+
+        localStorage.setItem('isp_chamados', JSON.stringify(this.chamados));
+        
+        Auth.logAction(user.id, 'ATUALIZACAO_CHAMADO', `Chamado ${id}: status para ${novoStatus}`);
+        
+        Toast.success(`Chamado ${novoStatus.replace('_', ' ')}!`);
+        this.closeDetalheModal();
+        this.render();
+        this.updateKPIs();
+    },
+
+    adicionarHistorico(id) {
+        const observacao = prompt('Digite a observação para o histórico:');
+        if (!observacao) return;
+
+        const index = this.chamados.findIndex(c => c.id === id);
+        if (index === -1) return;
+
+        const user = Auth.checkSession();
+        this.chamados[index].historico.push({
+            data: new Date().toISOString(),
+            usuario: user.nome,
+            acao: 'Observação adicionada',
+            observacao: observacao
+        });
+
+        localStorage.setItem('isp_chamados', JSON.stringify(this.chamados));
+        Toast.success('Observação adicionada!');
+        this.viewChamado(id); // Recarrega modal
+    },
+
+    quickWhatsApp(phone) {
+        const cleanPhone = phone.replace(/\D/g, '');
+        window.open(`https://wa.me/55${cleanPhone}?text=Olá! Somos do suporte técnico. Como podemos ajudar?`, '_blank');
+    },
+
+    applyFilters() {
+        const search = document.getElementById('filter-search')?.value.toLowerCase() || '';
+        const status = document.getElementById('filter-status')?.value || '';
+        const prioridade = document.getElementById('filter-prioridade')?.value || '';
+
+        let filtered = [...this.chamados];
+
+        if (search) {
+            filtered = filtered.filter(c => {
+                const client = this.clients.find(cl => cl.id === c.cliente_id);
+                return c.protocolo.toLowerCase().includes(search) || 
+                       c.assunto.toLowerCase().includes(search) ||
+                       client?.nome.toLowerCase().includes(search);
+            });
+        }
+        if (status) filtered = filtered.filter(c => c.status === status);
+        if (prioridade) filtered = filtered.filter(c => c.prioridade === prioridade);
+
+        const tbody = document.getElementById('chamados-table-body');
+        tbody.innerHTML = filtered.map(ch => this.renderRow(ch)).join('');
+    },
+
+    exportarRelatorio() {
+        const csvContent = "data:text/csv;charset=utf-8," 
+            + "Protocolo,Cliente,Assunto,Categoria,Prioridade,Status,Atendente,Data Abertura\n"
+            + this.chamados.map(c => {
+                const client = this.clients.find(cl => cl.id === c.cliente_id);
+                const atendente = this.users.find(u => u.id === c.atendente_id);
+                return `${c.protocolo},${client?.nome||''},${c.assunto},${c.categoria},${c.prioridade},${c.status},${atendente?.nome||''},${new Date(c.data_abertura).toLocaleDateString('pt-BR')}`;
+            }).join("\n");
+        
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `relatorio_suporte_${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        Toast.success('Relatório exportado!');
+    }
+};
+
+// Inicialização
+document.addEventListener('DOMContentLoaded', () => {
+    Sidebar.render();
+    Header.render();
+    Suporte.init();
+
+    document.getElementById('chamado-form')?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const user = Auth.checkSession();
+        
+        const newChamado = {
+            id: Date.now(),
+            protocolo: `CHM-${new Date().getFullYear()}-${String(this.chamados.length + 1).padStart(3, '0')}`,
+            cliente_id: parseInt(fd.get('cliente_id')),
+            assunto: fd.get('assunto'),
+            categoria: fd.get('categoria'),
+            prioridade: fd.get('prioridade'),
+            status: 'ABERTO',
+            tipo: fd.get('tipo'),
+            descricao: fd.get('descricao'),
+            atendente_id: user.id,
+            data_abertura: new Date().toISOString(),
+            data_atualizacao: new Date().toISOString(),
+            historico: [{
+                data: new Date().toISOString(),
+                usuario: user.nome,
+                acao: 'Chamado criado',
+                observacao: fd.get('descricao')
+            }]
+        };
+
+        this.chamados.push(newChamado);
+        localStorage.setItem('isp_chamados', JSON.stringify(this.chamados));
+        
+        Auth.logAction(user.id, 'NOVO_CHAMADO', `Chamado ${newChamado.protocolo} criado`);
+        
+        Toast.success('Chamado criado com sucesso!');
+        Suporte.closeChamadoModal();
+        Suporte.render();
+        Suporte.updateKPIs();
+    });
+});
+    </script>
+</body>
+</html>

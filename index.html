@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - ISP Manager Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 50: '#eff6ff', 100: '#dbeafe', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8', 800: '#1e40af', 900: '#1e3a8a' },
+                        secondary: { 50: '#f0fdfa', 100: '#ccfbf1', 500: '#10b981', 600: '#059669', 700: '#047857' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .bg-gradient-animate { background-size: 400% 400%; animation: gradient 15s ease infinite; }
+        @keyframes gradient { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
+    <div class="absolute inset-0 bg-gradient-animate bg-gradient-to-br from-blue-900/20 via-purple-900/20 to-indigo-900/20 z-0"></div>
+    <div class="absolute inset-0 opacity-10 z-0" style="background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCI+PHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBmaWxsPSJub25lIiBzdHJva2U9IiMzMzMzMzMiIHN0cm9rZS1vcGFjaXR5PSIwLjEiIHN0cm9rZS13aWR0aD0iMSIvPjwvc3ZnPg==')"></div>
+    
+    <div class="relative z-10 w-full max-w-md">
+        <div class="bg-gray-800/90 backdrop-blur-lg border border-gray-700 rounded-2xl shadow-2xl overflow-hidden">
+            <div class="p-8 pb-6 text-center">
+                <div class="mx-auto w-20 h-20 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 flex items-center justify-center mb-4 shadow-lg">
+                    <i class="fas fa-network-wired text-3xl text-white"></i>
+                </div>
+                <h1 class="text-3xl font-bold text-white mb-2">ISP Manager Pro</h1>
+                <p class="text-gray-400 text-sm">Sistema de Gestão para Provedores FTTH</p>
+            </div>
+
+            <form id="loginForm" class="p-8 pt-4 space-y-6">
+                <div class="space-y-2">
+                    <label for="email" class="block text-sm font-medium text-gray-300 ml-1">Email Corporativo</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><i class="fas fa-envelope text-gray-500"></i></div>
+                        <input type="email" id="email" required class="w-full pl-10 pr-4 py-3 bg-gray-900/50 border border-gray-600 rounded-lg focus:outline-none focus:border-blue-500 text-white placeholder-gray-500" placeholder="seu.email@provedor.com" autocomplete="username">
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <label for="password" class="block text-sm font-medium text-gray-300 ml-1">Senha</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><i class="fas fa-lock text-gray-500"></i></div>
+                        <input type="password" id="password" required class="w-full pl-10 pr-4 py-3 bg-gray-900/50 border border-gray-600 rounded-lg focus:outline-none focus:border-blue-500 text-white placeholder-gray-500" placeholder="••••••••" autocomplete="current-password">
+                    </div>
+                </div>
+
+                <div id="errorMsg" class="hidden bg-red-500/10 border border-red-500/50 text-red-400 text-sm p-3 rounded-lg flex items-center gap-2">
+                    <i class="fas fa-exclamation-circle"></i><span>Credenciais inválidas.</span>
+                </div>
+
+                <button type="submit" id="loginButton" class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg flex items-center justify-center gap-2 group">
+                    <span>Entrar no Sistema</span><i class="fas fa-arrow-right-to-bracket group-hover:translate-x-1 transition-transform"></i>
+                </button>
+            </form>
+
+            <div class="px-8 py-4 bg-gray-900/30 border-t border-gray-700">
+                <div class="text-xs text-gray-500 space-y-1 text-center">
+                    <p><strong>Credenciais de teste:</strong></p>
+                    <p>Comercial: comercial@provedor.com / com123</p>
+                    <p>SuperUser: super@provedor.com / super123</p>
+                </div>
+            </div>
+            
+            <div class="px-8 py-4 bg-gray-900/50 border-t border-gray-700 text-center">
+                <p class="text-xs text-gray-500">© 2026 ISP Manager Pro. Todos os direitos reservados.</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/core/data.js"></script>
+    <script src="js/core/auth.js"></script>
+    
+    <script>
+        Auth.redirectIfLogged();
+        const loginForm = document.getElementById('loginForm');
+        const errorMsg = document.getElementById('errorMsg');
+        const loginButton = document.getElementById('loginButton');
+
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            errorMsg.classList.add('hidden');
+            
+            loginButton.disabled = true;
+            loginButton.innerHTML = '<i class="fas fa-spinner animate-spin"></i> Autenticando...';
+            
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            const success = Auth.login(email, password);
+            
+            if (success) {
+                loginButton.innerHTML = '<i class="fas fa-check"></i> Autenticado!';
+                loginButton.classList.replace('from-blue-600','from-green-600');
+                loginButton.classList.replace('to-indigo-600','to-emerald-600');
+                setTimeout(() => window.location.href = 'app.html', 800);
+            } else {
+                errorMsg.classList.remove('hidden');
+                loginButton.innerHTML = '<i class="fas fa-arrow-right-to-bracket"></i> Entrar no Sistema';
+                loginButton.disabled = false;
+                document.getElementById('email').focus();
+            }
+        });
+    </script>
+</body>
+</html>

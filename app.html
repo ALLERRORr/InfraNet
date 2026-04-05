@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ISP Manager Pro - Sistema de Gestão FTTH</title>
+    
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Tailwind Config -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#eff6ff', 100: '#dbeafe', 500: '#3b82f6',
+                            600: '#2563eb', 700: '#1d4ed8', 800: '#1e40af', 900: '#1e3a8a'
+                        },
+                        secondary: {
+                            50: '#f0fdfa', 100: '#ccfbf1', 500: '#10b981',
+                            600: '#059669', 700: '#047857', 800: '#065f46', 900: '#064e3b'
+                        },
+                        dark: {
+                            50: '#f9fafb', 100: '#f3f4f6', 200: '#e5e7eb', 300: '#d1d5db',
+                            400: '#9ca3af', 500: '#6b7280', 600: '#4b5563', 700: '#374151',
+                            800: '#1f2937', 900: '#111827'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+        
+        /* Sidebar transitions */
+        .sidebar-transition { transition: all 0.3s ease-in-out; }
+        
+        /* Content fade animation */
+        .content-fade { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Mobile sidebar overlay */
+        .sidebar-overlay { 
+            display: none; 
+            position: fixed; 
+            inset: 0; 
+            background: rgba(0,0,0,0.5); 
+            z-index: 39; 
+        }
+        .sidebar-overlay.active { display: block; }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 antialiased overflow-hidden">
+    
+    <!-- Mobile sidebar overlay -->
+    <div id="sidebar-overlay" class="sidebar-overlay" onclick="Sidebar.toggleMobile()"></div>
+    
+    <!-- Sidebar -->
+    <aside id="sidebar" 
+           class="fixed inset-y-0 left-0 w-64 bg-gray-800 border-r border-gray-700 z-40 transform -translate-x-full md:translate-x-0 sidebar-transition flex flex-col">
+        
+        <!-- Logo -->
+        <div class="h-16 flex items-center gap-3 px-6 border-b border-gray-700">
+            <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+                <i class="fas fa-network-wired text-white text-sm"></i>
+            </div>
+            <span class="font-bold text-lg text-white">ISP Manager</span>
+        </div>
+        
+        <!-- Menu -->
+        <div id="sidebar-menu" class="flex-1 overflow-y-auto py-4 px-3">
+            <!-- Renderizado via JavaScript -->
+        </div>
+        
+        <!-- User info (mobile) -->
+        <div class="md:hidden p-4 border-t border-gray-700">
+            <div class="flex items-center gap-3">
+                <img id="mobile-user-avatar" src="" alt="User" class="w-10 h-10 rounded-full">
+                <div>
+                    <p id="mobile-user-name" class="font-medium text-white text-sm"></p>
+                    <p id="mobile-user-role" class="text-xs text-gray-400"></p>
+                </div>
+            </div>
+        </div>
+    </aside>
+    
+    <!-- Main content -->
+    <div class="md:ml-64 flex flex-col h-screen">
+        
+        <!-- Header -->
+        <header class="h-16 bg-gray-800/80 backdrop-blur-lg border-b border-gray-700 flex items-center justify-between px-4 lg:px-6 z-30">
+            
+            <!-- Left side -->
+            <div class="flex items-center gap-4">
+                <!-- Mobile menu button -->
+                <button id="mobile-menu-btn" class="md:hidden p-2 hover:bg-gray-700 rounded-lg transition-colors">
+                    <i class="fas fa-bars text-gray-400"></i>
+                </button>
+                
+                <!-- Search button (Ctrl+K) -->
+                <button onclick="Sidebar.openSearch()" class="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-gray-700/50 hover:bg-gray-700 rounded-lg transition-colors text-gray-400 text-sm">
+                    <i class="fas fa-search"></i>
+                    <span>Buscar...</span>
+                    <kbd class="ml-2 px-1.5 py-0.5 bg-gray-600 rounded text-xs">Ctrl+K</kbd>
+                </button>
+            </div>
+            
+            <!-- Right side -->
+            <div class="flex items-center gap-3 lg:gap-4">
+                
+                <!-- Quick actions -->
+                <div class="hidden sm:flex items-center gap-2">
+                    <button class="p-2 hover:bg-gray-700 rounded-lg transition-colors text-gray-400 hover:text-white" title="Relatórios">
+                        <i class="fas fa-chart-bar"></i>
+                    </button>
+                    <button class="p-2 hover:bg-gray-700 rounded-lg transition-colors text-gray-400 hover:text-white" title="Configurações">
+                        <i class="fas fa-cog"></i>
+                    </button>
+                </div>
+                
+                <!-- Dark mode toggle -->
+                <button id="dark-mode-toggle" class="p-2 hover:bg-gray-700 rounded-lg transition-colors">
+                    <i class="fas fa-moon text-gray-400"></i>
+                </button>
+                
+                <!-- Notifications -->
+                <div class="relative">
+                    <button id="notifications-btn" class="p-2 hover:bg-gray-700 rounded-lg transition-colors relative">
+                        <i class="fas fa-bell text-gray-400"></i>
+                        <span id="notifications-badge" class="hidden absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center"></span>
+                    </button>
+                    
+                    <!-- Notifications dropdown -->
+                    <div id="notifications-dropdown" class="hidden absolute right-0 mt-2 w-80 bg-gray-800 border border-gray-700 rounded-xl shadow-xl z-50">
+                        <div class="p-3 border-b border-gray-700">
+                            <h3 class="font-semibold text-white">Notificações</h3>
+                        </div>
+                        <div id="notifications-list" class="max-h-96 overflow-y-auto">
+                            <!-- Renderizado via JS -->
+                        </div>
+                        <div class="p-3 border-t border-gray-700 text-center">
+                            <button class="text-sm text-blue-400 hover:text-blue-300">Ver todas</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- User menu -->
+                <div class="relative">
+                    <button id="user-menu-btn" class="flex items-center gap-2 p-1.5 hover:bg-gray-700 rounded-lg transition-colors">
+                        <img id="header-user-avatar" src="" alt="User" class="w-8 h-8 rounded-full">
+                        <div class="hidden lg:block text-left">
+                            <p id="header-user-name" class="text-sm font-medium text-white"></p>
+                            <p id="header-user-role" class="text-xs text-gray-400"></p>
+                        </div>
+                        <i class="fas fa-chevron-down text-gray-400 text-xs hidden lg:block"></i>
+                    </button>
+                    
+                    <!-- User dropdown -->
+                    <div id="user-dropdown" class="hidden absolute right-0 mt-2 w-48 bg-gray-800 border border-gray-700 rounded-xl shadow-xl z-50">
+                        <div class="p-3 border-b border-gray-700">
+                            <p class="text-sm font-medium text-white" id="dropdown-user-name"></p>
+                            <p class="text-xs text-gray-400" id="dropdown-user-email"></p>
+                        </div>
+                        <a href="#perfil" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white">
+                            <i class="fas fa-user mr-2"></i>Meu Perfil
+                        </a>
+                        <a href="#config" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white">
+                            <i class="fas fa-cog mr-2"></i>Configurações
+                        </a>
+                        <hr class="border-gray-700">
+                        <button id="logout-btn" class="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-gray-700 hover:text-red-300">
+                            <i class="fas fa-sign-out-alt mr-2"></i>Sair
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Page content -->
+        <main id="app-content" class="flex-1 overflow-y-auto p-4 lg:p-6 content-fade">
+            <!-- Conteúdo renderizado via Router -->
+        </main>
+    </div>
+    
+    <!-- Search Modal -->
+    <div id="search-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-start justify-center pt-20">
+        <div class="bg-gray-800 border border-gray-700 rounded-xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden">
+            <div class="p-4 border-b border-gray-700">
+                <input id="search-input" type="text" placeholder="Buscar páginas, clientes, ordens..." 
+                       class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
+            </div>
+            <div id="search-results" class="max-h-96 overflow-y-auto p-2">
+                <!-- Resultados -->
+            </div>
+            <div class="p-3 border-t border-gray-700 text-xs text-gray-500 flex justify-between">
+                <span><kbd class="px-1.5 py-0.5 bg-gray-700 rounded">↑↓</kbd> Navegar</span>
+                <span><kbd class="px-1.5 py-0.5 bg-gray-700 rounded">Enter</kbd> Selecionar</span>
+                <span><kbd class="px-1.5 py-0.5 bg-gray-700 rounded">Esc</kbd> Fechar</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Scripts Core -->
+    <script src="js/core/data.js"></script>
+    <script src="js/core/auth.js"></script>
+    <script src="js/core/permissions.js"></script>
+    <script src="js/core/router.js"></script>
+    
+    <!-- Scripts Components -->
+    <script src="js/components/toast.js"></script>
+    <script src="js/components/sidebar.js"></script>
+    <script src="js/components/header.js"></script>
+    
+    <!-- Scripts Pages -->
+    <script src="js/pages/clientes.js"></script>
+    <script src="js/pages/ordens-servico.js"></script>
+    
+    <!-- App Initialization -->
+    <script>
+        // Verifica autenticação
+        const user = Auth.checkSession();
+        if (!user) {
+            window.location.href = 'index.html';
+        } else {
+            // Inicializa componentes
+            document.addEventListener('DOMContentLoaded', () => {
+                Toast.init();
+                Sidebar.init();
+                Header.init();
+                
+                // Registra todas as rotas
+                Router.register('dashboard', Pages.dashboard);
+                Router.register('clientes', Clientes.render);
+                Router.register('ordens-servico', OrdensServico.render);
+                
+                // Inicializa router
+                Router.init();
+            });
+        }
+    </script>
+    
+    <!-- Pages Registry -->
+    <script>
+        const Pages = {
+            dashboard: (params) => {
+                const user = Auth.checkSession();
+                const clients = JSON.parse(localStorage.getItem('isp_clients') || '[]');
+                const orders = JSON.parse(localStorage.getItem('isp_orders') || '[]');
+                const contracts = JSON.parse(localStorage.getItem('isp_contracts') || '[]');
+                
+                // KPIs básicos
+                const totalClients = clients.length;
+                const activeClients = clients.filter(c => c.status === 'ATIVO').length;
+                const pendingOS = orders.filter(o => o.status === 'AGENDADA' || o.status === 'ABERTA').length;
+                const pendingContracts = contracts.filter(c => c.status === 'PENDENTE' || c.status === 'AGUARDANDO_ASSINATURA').length;
+                
+                document.getElementById('app-content').innerHTML = `
+                    <div class="space-y-6">
+                        <!-- Page header -->
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                            <div>
+                                <h1 class="text-2xl font-bold text-white">Dashboard</h1>
+                                <p class="text-gray-400 text-sm mt-1">Bem-vindo, ${user.nome}! Visão geral do sistema.</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm text-gray-400">${new Date().toLocaleDateString('pt-BR')}</span>
+                            </div>
+                        </div>
+                        
+                        <!-- KPI Cards -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div class="bg-gray-800 border border-gray-700 rounded-xl p-5 hover:border-blue-500/50 transition-colors">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <p class="text-gray-400 text-sm">Total Clientes</p>
+                                        <p class="text-3xl font-bold text-white mt-1">${totalClients}</p>
+                                    </div>
+                                    <div class="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-users text-blue-400 text-xl"></i>
+                                    </div>
+                                </div>
+                                <div class="mt-4 flex items-center text-sm">
+                                    <span class="text-green-400"><i class="fas fa-arrow-up"></i> 12%</span>
+                                    <span class="text-gray-500 ml-2">vs mês anterior</span>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-gray-800 border border-gray-700 rounded-xl p-5 hover:border-green-500/50 transition-colors">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <p class="text-gray-400 text-sm">Clientes Ativos</p>
+                                        <p class="text-3xl font-bold text-white mt-1">${activeClients}</p>
+                                    </div>
+                                    <div class="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-check-circle text-green-400 text-xl"></i>
+                                    </div>
+                                </div>
+                                <div class="mt-4 flex items-center text-sm">
+                                    <span class="text-gray-500">${Math.round((activeClients/totalClients)*100) || 0}% da base</span>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-gray-800 border border-gray-700 rounded-xl p-5 hover:border-yellow-500/50 transition-colors">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <p class="text-gray-400 text-sm">OS Pendentes</p>
+                                        <p class="text-3xl font-bold text-white mt-1">${pendingOS}</p>
+                                    </div>
+                                    <div class="w-12 h-12 bg-yellow-500/20 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-clipboard-list text-yellow-400 text-xl"></i>
+                                    </div>
+                                </div>
+                                <div class="mt-4 flex items-center text-sm">
+                                    <span class="text-gray-500">${orders.filter(o => o.status === 'AGENDADA').length} agendadas</span>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-gray-800 border border-gray-700 rounded-xl p-5 hover:border-purple-500/50 transition-colors">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <p class="text-gray-400 text-sm">Contratos Pendentes</p>
+                                        <p class="text-3xl font-bold text-white mt-1">${pendingContracts}</p>
+                                    </div>
+                                    <div class="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-file-signature text-purple-400 text-xl"></i>
+                                    </div>
+                                </div>
+                                <div class="mt-4 flex items-center text-sm">
+                                    <span class="text-gray-500">Aguardando assinatura</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Charts row -->
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <!-- Crescimento de clientes -->
+                            <div class="bg-gray-800 border border-gray-700 rounded-xl p-5">
+                                <h3 class="text-lg font-semibold text-white mb-4">Crescimento da Base</h3>
+                                <canvas id="chart-growth" height="200"></canvas>
+                            </div>
+                            
+                            <!-- Status dos clientes -->
+                            <div class="bg-gray-800 border border-gray-700 rounded-xl p-5">
+                                <h3 class="text-lg font-semibold text-white mb-4">Status dos Clientes</h3>
+                                <canvas id="chart-status" height="200"></canvas>
+                            </div>
+                        </div>
+                        
+                        <!-- Recent activities -->
+                        <div class="bg-gray-800 border border-gray-700 rounded-xl p-5">
+                            <h3 class="text-lg font-semibold text-white mb-4">Atividades Recentes</h3>
+                            <div class="space-y-3">
+                                ${clients.slice(0, 5).map(client => `
+                                    <div class="flex items-center gap-3 p-3 bg-gray-900/50 rounded-lg">
+                                        <div class="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center">
+                                            <i class="fas fa-user text-blue-400"></i>
+                                        </div>
+                                        <div class="flex-1">
+                                            <p class="text-white font-medium">${client.nome}</p>
+                                            <p class="text-gray-500 text-sm">${client.plano} - ${client.status}</p>
+                                        </div>
+                                        <span class="text-xs text-gray-500">${new Date(client.data_criacao).toLocaleDateString('pt-BR')}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // Render charts after DOM update
+                setTimeout(() => {
+                    this.renderCharts();
+                }, 100);
+            },
+            
+            renderCharts: () => {
+                // Growth chart
+                const growthCtx = document.getElementById('chart-growth');
+                if (growthCtx) {
+                    new Chart(growthCtx, {
+                        type: 'line',
+                        data: {
+                            labels: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun'],
+                            datasets: [{
+                                label: 'Clientes',
+                                data: [120, 145, 178, 210, 245, 280],
+                                borderColor: '#3b82f6',
+                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                fill: true,
+                                tension: 0.4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: false }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: false,
+                                    grid: { color: '#374151' },
+                                    ticks: { color: '#9ca3af' }
+                                },
+                                x: {
+                                    grid: { display: false },
+                                    ticks: { color: '#9ca3af' }
+                                }
+                            }
+                        }
+                    });
+                }
+                
+                // Status chart
+                const statusCtx = document.getElementById('chart-status');
+                if (statusCtx) {
+                    const clients = JSON.parse(localStorage.getItem('isp_clients') || '[]');
+                    const statusCount = {};
+                    clients.forEach(c => {
+                        statusCount[c.status] = (statusCount[c.status] || 0) + 1;
+                    });
+                    
+                    new Chart(statusCtx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: Object.keys(statusCount),
+                            datasets: [{
+                                data: Object.values(statusCount),
+                                backgroundColor: [
+                                    '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'
+                                ],
+                                borderWidth: 0
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom',
+                                    labels: { color: '#9ca3af', padding: 15 }
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+        };
+    </script>
+</body>
+</html>
